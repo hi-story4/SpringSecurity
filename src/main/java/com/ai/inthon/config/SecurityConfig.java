@@ -14,6 +14,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
@@ -25,7 +26,7 @@ import java.util.Collections;
 @RequiredArgsConstructor
 @Slf4j
 public class SecurityConfig {
-
+    private final CorsFilter corsFilter;
     private final CustomUserDetailsService customUserDetailsService;
     private final UnauthorizedHandler unauthorizedHandler;
     private final CustomAccessDeniedHandler accessDeniedHandler;
@@ -34,7 +35,7 @@ public class SecurityConfig {
             CorsConfiguration config = new CorsConfiguration();
             config.setAllowedHeaders(Collections.singletonList("*"));
             config.setAllowedMethods(Collections.singletonList("*"));
-            config.setAllowedOriginPatterns(Arrays.asList("http://localhost:5173", "http://localhost:3000")); // ⭐️ 허용할 origin
+            config.setAllowedOriginPatterns(Arrays.asList("*")); // ⭐️ 허용할 origin
             config.setAllowCredentials(true);
             return config;
         };
@@ -43,15 +44,18 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(corsConfigurer -> corsConfigurer.configurationSource(corsConfigurationSource()))
+//                .cors(corsConfigurer -> corsConfigurer.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
+                .addFilterBefore(corsFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeRequests(authorize -> authorize
-                        .requestMatchers("/user/*").authenticated()
+                        .requestMatchers("/user/*")
+                        .authenticated()
                         .anyRequest().permitAll()
                 )
+                .userDetailsService(customUserDetailsService)
                 .formLogin(form -> form
                         .loginPage("http://localhost:5173")
-                        .loginProcessingUrl("/login") // 로그인 폼이 제출되는 URL
+                        .loginProcessingUrl("/api/login") // 로그인 폼이 제출되는 URL
                         .usernameParameter("username")  // 프론트의 form name과 매칭
                         .passwordParameter("password")
 //                        .defaultSuccessUrl("http://localhost:5173/home", true) // 성공 시
@@ -72,9 +76,9 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(true)
-                )
-                .userDetailsService(customUserDetailsService);
-        log.info("user login");
+                );
+
+
 
         return http.build();
     }
